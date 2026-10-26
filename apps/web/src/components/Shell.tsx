@@ -2,6 +2,7 @@ import { Calendar, FileUp, Images, LineChart, ListChecks, MessageSquareReply, Se
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth";
 import { cn } from "../lib/utils";
+import { useMediaQuery } from "../lib/useMediaQuery";
 import { Button } from "./ui/button";
 
 const nav = [
@@ -22,9 +23,11 @@ const link = ({ isActive }: { isActive: boolean }) =>
 
 export function Shell() {
   const { brands, brand, setBrandId, signOut, session } = useAuth();
+  const wide = useMediaQuery("(min-width: 768px)");
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border p-3 md:flex">
+    <div className={cn("flex h-full", wide ? "flex-row" : "flex-col")}>
+      {wide && (
+      <aside className="flex w-60 shrink-0 flex-col border-r border-border p-3">
         <label className="sr-only" htmlFor="brand">Brand</label>
         <select
           id="brand" value={brand?.id} onChange={(e) => setBrandId(e.target.value)}
@@ -42,25 +45,31 @@ export function Shell() {
         <div className="space-y-2 border-t border-border pt-3 text-xs text-muted-foreground">
           <p className="truncate">{session?.user.email}</p>
           <Button variant="ghost" className="w-full justify-start" onClick={signOut}><LogOut size={14} aria-hidden /> Sign out</Button>
+          <p className="px-3 text-[10px] opacity-60">build {__BUILD__}</p>
         </div>
       </aside>
+      )}
 
-      <header className="flex items-center justify-between border-b border-border p-3 md:hidden">
-        <span className="font-semibold">{brand?.name}</span>
-        <Button variant="ghost" onClick={signOut} aria-label="Sign out"><LogOut size={16} /></Button>
-      </header>
+      {!wide && (
+        <header className="flex items-center justify-between border-b border-border p-3">
+          <span className="font-semibold">{brand?.name}</span>
+          <Button variant="ghost" onClick={signOut} aria-label="Sign out"><LogOut size={16} /></Button>
+        </header>
+      )}
 
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-24 sm:p-6 md:pb-6">
+      <main className={cn("min-w-0 flex-1 overflow-y-auto p-4 sm:p-6", !wide && "pb-24")}>
         <Outlet />
       </main>
 
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t border-border bg-background/95 p-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-        {nav.filter((n) => ["/", "/queue", "/upload", "/settings"].includes(n.to)).map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cn("flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs text-muted-foreground", isActive && "text-primary")}>
-            <Icon size={18} aria-hidden /> {label}
-          </NavLink>
-        ))}
-      </nav>
+      {!wide && (
+        <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t border-border bg-background p-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+          {nav.filter((n) => ["/", "/queue", "/upload", "/settings"].includes(n.to)).map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cn("flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs text-muted-foreground", isActive && "text-primary")}>
+              <Icon size={18} aria-hidden /> {label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

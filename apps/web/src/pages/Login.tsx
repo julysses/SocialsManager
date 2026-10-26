@@ -98,6 +98,7 @@ export function Login({ denied, reason, onSignOut }: { denied?: boolean; reason?
           </form>
         )}
       </Card>
+      <p className="fixed bottom-2 right-3 text-[10px] text-muted-foreground opacity-60">build {__BUILD__}</p>
     </main>
   );
 }
