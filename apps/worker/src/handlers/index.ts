@@ -1,19 +1,33 @@
 import type { AgentRunResult, ModelProvider } from "@socialos/agents";
-import type { Job } from "../types.js";
+import type { Job, WorkerDb } from "../types.js";
+import { captionPackage } from "./caption-package.js";
 import { hello } from "./hello.js";
+import { publish } from "./publish.js";
+import { voiceBuild } from "./voice-build.js";
 
 export interface HandlerContext {
   job: Job;
   provider: ModelProvider;
+  db: WorkerDb;
+  log: (msg: string) => void;
+}
+
+export interface HandlerRun {
+  agentKey: string;
+  run: AgentRunResult<unknown>;
 }
 
 export interface HandlerOutput {
-  agentKey: string;
   result: unknown;
-  run: AgentRunResult<unknown>;
+  /** One entry per model call, each written to agent_runs. Empty for plain-code jobs (publish). */
+  runs: HandlerRun[];
 }
 
 export type Handler = (ctx: HandlerContext) => Promise<HandlerOutput>;
 
-/** Phase 1 registers caption_package and voice_build here. */
-export const handlers: Record<string, Handler> = { hello };
+export const handlers: Record<string, Handler> = {
+  hello,
+  caption_package: captionPackage,
+  voice_build: voiceBuild,
+  publish,
+};

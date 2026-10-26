@@ -27,7 +27,10 @@ export class ClaudeCliProvider implements ModelProvider {
   buildArgs(req: CompleteRequest): string[] {
     const args = ["-p", "--output-format", "json", "--append-system-prompt", req.system, "--max-turns", "4"];
     if (this.opts.model) args.push("--model", this.opts.model);
-    if (req.attachments?.length) args.push("--allowedTools", "Read");
+    if (req.attachments?.length) {
+      const dirs = [...new Set(req.attachments.map((f) => f.replace(/\/[^/]*$/, "") || "/"))];
+      args.push("--allowedTools", "Read", "--add-dir", ...dirs);
+    }
     else args.push("--tools", "");
     return args;
   }

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@socialos/agents": "*",
+    "@socialos/publisher": "*",
     "@supabase/supabase-js": "2.49.4",
     "tsx": "4.19.4"
   },

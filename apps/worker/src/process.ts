@@ -24,17 +24,22 @@ export async function processJob(job: Job, deps: ProcessDeps): Promise<Outcome> 
 
   try {
     if (!handler) throw new Error(`no handler for job kind "${job.kind}"`);
-    const out = await handler({ job, provider });
-    await db.insertAgentRun({
-      ...base,
-      agent_key: out.agentKey,
-      prompt_hash: out.run.promptHash,
-      raw_output: out.run.raw,
-      output_ref: `jobs/${job.id}/result`,
-      duration_ms: Date.now() - started,
-      tokens_in: out.run.tokensIn,
-      tokens_out: out.run.tokensOut,
-    });
+    const out = await handler({ job, provider, db, log });
+    for (const r of out.runs) {
+      await db.insertAgentRun({
+        ...base,
+        agent_key: r.agentKey,
+        prompt_hash: r.run.promptHash,
+        raw_output: r.run.raw,
+        output_ref: `jobs/${job.id}/result`,
+        duration_ms: r.run.durationMs,
+        tokens_in: r.run.tokensIn,
+        tokens_out: r.run.tokensOut,
+      });
+    }
+    if (out.runs.length === 0) {
+      await db.insertAgentRun({ ...base, agent_key: job.kind, output_ref: `jobs/${job.id}/result`, duration_ms: Date.now() - started });
+    }
     await db.succeed(job.id, out.result);
     log(`job ${job.id} (${job.kind}) succeeded`);
     return "succeeded";
