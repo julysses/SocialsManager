@@ -1,6 +1,15 @@
 import { spawn } from "node:child_process";
 import { UsageLimitError, type CompleteRequest, type CompleteResult, type ModelProvider } from "./provider.js";
 
+/** Env for the child process: no API keys (subscription only) and a whitespace-free OAuth token (terminals wrap long tokens when copied). */
+export function buildChildEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env = { ...base };
+  delete env.ANTHROPIC_API_KEY;
+  delete env.ANTHROPIC_AUTH_TOKEN;
+  if (env.CLAUDE_CODE_OAUTH_TOKEN) env.CLAUDE_CODE_OAUTH_TOKEN = env.CLAUDE_CODE_OAUTH_TOKEN.replace(/\s+/g, "");
+  return env;
+}
+
 export interface ClaudeCliOptions {
   /** Executable name or path. */
   bin?: string;
@@ -25,9 +34,7 @@ export class ClaudeCliProvider implements ModelProvider {
 
   complete(req: CompleteRequest): Promise<CompleteResult> {
     const started = Date.now();
-    const env = { ...process.env };
-    delete env.ANTHROPIC_API_KEY;
-    delete env.ANTHROPIC_AUTH_TOKEN;
+    const env = buildChildEnv(process.env);
     const prompt = req.attachments?.length
       ? `${req.prompt}\n\nFiles you may read:\n${req.attachments.map((p) => `- ${p}`).join("\n")}`
       : req.prompt;
