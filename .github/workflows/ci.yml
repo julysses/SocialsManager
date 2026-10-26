@@ -1,0 +1,33 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  ts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check:no-platform-writes
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://qwnmeltdckwgsrjxvons.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'placeholder-for-ci-build' }}
+  sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: RLS, approval gate and job-claim tests
+        run: |
+          sudo chown -R "$USER" /tmp || true
+          PGTEST_SUPERUSER="$USER" bash supabase/tests/run.sh

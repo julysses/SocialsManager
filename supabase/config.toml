@@ -1,0 +1,4 @@
+project_id = "qwnmeltdckwgsrjxvons"
+
+[functions.enqueue]
+verify_jwt = true

@@ -1,0 +1,8 @@
+{
+  "name": "@socialos/publisher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 2: Metricool adapter, dry-run adapter, manual-X adapter. The ONLY module allowed to call platform write endpoints. No LLM.",
+  "main": "src/index.ts"
+}

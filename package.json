@@ -1,0 +1,15 @@
+{
+  "name": "social-os",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build -w apps/web",
+    "check:no-platform-writes": "node scripts/check-no-platform-writes.mjs",
+    "test:sql": "bash supabase/tests/run.sh"
+  }
+}

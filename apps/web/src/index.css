@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 25% 6%;
+  --foreground: 210 20% 94%;
+  --card: 222 22% 9%;
+  --muted: 222 18% 14%;
+  --muted-foreground: 215 14% 62%;
+  --border: 222 16% 18%;
+  --primary: 38 92% 56%;
+  --primary-foreground: 222 25% 8%;
+  --success: 152 60% 45%;
+  --warning: 38 92% 56%;
+  --danger: 0 72% 58%;
+}
+
+html, body, #root { height: 100%; }
+body { @apply bg-background text-foreground antialiased; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+:focus-visible { @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background; }
