@@ -26,10 +26,10 @@ Pre-existing qoe-lite tables are untouched; no Social OS name collides with them
 ## Approval gate
 Enforced by triggers (`approvals_immutable`, `approvals_guard`, `enforce_approval_gate`, `publications_require_approved`).
 Beyond the PRD text: `approved` also requires an approval row; publications cannot be inserted for unapproved items;
-signups are restricted to `owner_allowlist` via a trigger on `auth.users`. Tested in `supabase/tests/01_gate_rls.test.sql`.
+`claim_owner()` only promotes emails in `owner_allowlist` (no trigger on `auth.users`, because the project also hosts another app). Tested in `supabase/tests/01_gate_rls.test.sql`.
 
 ## Auth
-Magic link. Sign-up is blocked at the database for any email not in `owner_allowlist`. After login the app calls
+Magic link. A stranger can create an auth user but gets no membership and sees no data. After login the app calls
 `claim_owner()`, which makes the first allowlisted user owner of the seeded workspace. Roles: `owner`, `approver`, `viewer`.
 
 ## Model abstraction

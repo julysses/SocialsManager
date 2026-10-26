@@ -49,9 +49,6 @@ declare
   d uuid := '00000000-0000-0000-0000-00000000000d';   -- approver in Daily Heckler workspace
   ws2 uuid; br2 uuid; ws1 uuid; br1 uuid;
 begin
-  perform tt.ok(tt.fails($q$insert into auth.users(id,email) values (gen_random_uuid(),'stranger@example.com')$q$, 'restricted'),
-    'sign-up of a non-allowlisted email is blocked');
-
   insert into owner_allowlist(email) values ('b@example.com'), ('c@example.com'), ('d@example.com');
   insert into auth.users(id, email) values (a, 'julyssesd@gmail.com'), (b, 'b@example.com'), (c, 'c@example.com'), (d, 'd@example.com');
 
@@ -62,6 +59,11 @@ begin
   perform tt.reset();
   perform tt.as_user(c, 'c@example.com');
   perform tt.ok(tt.fails('select claim_owner()', 'no unclaimed'), 'second allowlisted user cannot claim an owned workspace');
+  perform tt.reset();
+  insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000ee', 'stranger@example.com');
+  perform tt.as_user('00000000-0000-0000-0000-0000000000ee', 'stranger@example.com');
+  perform tt.ok(tt.fails('select claim_owner()', 'not allowlisted'), 'non-allowlisted account cannot claim ownership');
+  perform tt.ok((select count(*) from brands) = 0, 'non-allowlisted account sees no brands');
   perform tt.reset();
 
   select id into ws1 from workspaces where name = 'Julio Dominguez';
@@ -263,5 +265,15 @@ begin
   update jobs set locked_at = now() - interval '20 minutes' where id = j;
   perform tt.ok(requeue_stuck_jobs() = 1, 'stuck running job is requeued');
   perform tt.ok((select status from jobs where id = j) = 'queued', 'requeued job is queued again');
+  perform tt.reset();
+end $$;
+
+-- ------------------------------------------------------------ function grants
+do $$
+declare br1 uuid := current_setting('t.br1')::uuid;
+begin
+  perform tt.as_anon();
+  perform tt.ok(tt.fails(format('select has_brand_access(%L)', br1), 'permission denied'), 'anon cannot call has_brand_access');
+  perform tt.ok(tt.fails('select claim_owner()', 'permission denied'), 'anon cannot call claim_owner');
   perform tt.reset();
 end $$;

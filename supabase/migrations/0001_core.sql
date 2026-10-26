@@ -374,16 +374,9 @@ begin new.updated_at := now(); return new; end $$;
 create trigger jobs_touch before update on jobs for each row execute function touch_updated_at();
 create trigger knowledge_touch before update on knowledge_files for each row execute function touch_updated_at();
 
--- ---------------------------------------------------------------- sign-up allowlist + owner bootstrap
-create function enforce_signup_allowlist() returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  if not exists (select 1 from owner_allowlist where lower(email) = lower(new.email)) then
-    raise exception 'sign-ups are restricted';
-  end if;
-  return new;
-end $$;
-create trigger auth_users_allowlist before insert on auth.users
-  for each row execute function enforce_signup_allowlist();
+-- ---------------------------------------------------------------- owner bootstrap
+-- NOTE: no trigger on auth.users. The project also hosts another app (3 existing users), so sign-ups are
+-- not blocked globally; strangers get an auth user but no membership, hence no data (see claim_owner + RLS).
 
 -- Called by the app after login. First allowlisted user becomes owner of the seeded workspace.
 create function claim_owner() returns role_t
