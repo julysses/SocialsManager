@@ -1,23 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { MockProvider, UsageLimitError, type ModelProvider } from "@socialos/agents";
 import { processJob, runWorker } from "../src/process.js";
-import type { AgentRunRow, Job, WorkerDb } from "../src/types.js";
+import type { Job, WorkerDb } from "../src/types.js";
+import { FakeDb } from "./fake-db.js";
 
 const job = (over: Partial<Job> = {}): Job => ({
   id: "j1", brand_id: "b1", content_item_id: null, kind: "hello", payload: {}, attempts: 1, max_attempts: 3, ...over,
 });
 
 function fakeDb(queue: Job[] = []) {
-  const calls: { fn: string; args: unknown[] }[] = [];
-  const runs: AgentRunRow[] = [];
-  const db: WorkerDb = {
-    requeueStuck: async () => 0,
-    claim: async () => queue.splice(0, 5),
-    succeed: async (...args) => void calls.push({ fn: "succeed", args }),
-    fail: async (...args) => void calls.push({ fn: "fail", args }),
-    insertAgentRun: async (r) => void runs.push(r),
-  };
-  return { db, calls, runs };
+  const f = new FakeDb();
+  f.queue = queue;
+  return { db: f as WorkerDb, calls: f.calls, runs: f.runs };
 }
 
 const limited: ModelProvider = { mode: "mock", complete: async () => { throw new UsageLimitError("limit", new Date("2026-01-01T15:00:00Z")); } };

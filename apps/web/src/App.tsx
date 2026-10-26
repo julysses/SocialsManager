@@ -2,7 +2,13 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import { Shell } from "./components/Shell";
 import { Login } from "./pages/Login";
+import { ImportPage } from "./pages/Import";
+import { ItemDetailPage } from "./pages/ItemDetail";
+import { LibraryPage } from "./pages/Library";
 import { Placeholder } from "./pages/Placeholder";
+import { QueuePage } from "./pages/Queue";
+import { TodayPage } from "./pages/Today";
+import { UploadPage } from "./pages/Upload";
 import { SettingsPage } from "./pages/Settings";
 
 function Gate() {
@@ -13,11 +19,13 @@ function Gate() {
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<Placeholder title="Today" phase="Phase 1">Today's edition and what needs your approval will show here.</Placeholder>} />
-        <Route path="queue" element={<Placeholder title="Queue" phase="Phase 1">Cartoons with per-platform captions, checks, and Approve / Schedule.</Placeholder>} />
-        <Route path="upload" element={<Placeholder title="Upload" phase="Phase 1">Drop in a cartoon and the ChatGPT text to create a caption package.</Placeholder>} />
+        <Route index element={<TodayPage />} />
+        <Route path="queue" element={<QueuePage />} />
+        <Route path="queue/:id" element={<ItemDetailPage />} />
+        <Route path="upload" element={<UploadPage />} />
+        <Route path="import" element={<ImportPage />} />
         <Route path="replies" element={<Placeholder title="Replies" phase="Phase 3">Draft-only reply options for X posts you paste in.</Placeholder>} />
-        <Route path="library" element={<Placeholder title="Library" phase="Phase 1">Every item, filterable by status and platform.</Placeholder>} />
+        <Route path="library" element={<LibraryPage />} />
         <Route path="insights" element={<Placeholder title="Insights" phase="Phase 4">Metrics per post and hashtag set, plus party balance.</Placeholder>} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="*" element={<Placeholder title="Not found" phase="—">That page does not exist.</Placeholder>} />

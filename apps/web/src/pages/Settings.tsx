@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth";
 import { Badge, Card, CardTitle, EmptyState } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { KnowledgeEditor } from "../components/KnowledgeEditor";
 import { summarizeHealth, type JobRow } from "../lib/health";
 import { supabase } from "../lib/supabase";
 
@@ -98,7 +99,7 @@ export function SettingsPage() {
         </dl>
         <p className="text-xs text-muted-foreground">
           The AI-label setting is yours to decide; platform rules on labeling realistic synthetic media can override it. Satire involving real named people should
-          not present invented facts as real. This is not legal advice. Editing settings arrives in Phase 1; live publishing is locked until the Phase 2 gate.
+          not present invented facts as real. This is not legal advice. Brand setting changes are not editable in the app yet. Live publishing stays off until you and Claude finish the Metricool check.
         </p>
       </Card>
 
@@ -146,6 +147,8 @@ export function SettingsPage() {
           </div>
         )}
       </Card>
+
+      <KnowledgeEditor />
 
       <Card className="space-y-3">
         <CardTitle>Account</CardTitle>

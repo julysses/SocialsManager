@@ -1,8 +1,11 @@
 {
   "name": "@socialos/publisher",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Phase 2: Metricool adapter, dry-run adapter, manual-X adapter. The ONLY module allowed to call platform write endpoints. No LLM.",
-  "main": "src/index.ts"
+  "description": "The ONLY module allowed to call platform write endpoints. Plain code, no LLM. Payloads are built only from database rows.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "typecheck": "tsc -p .", "test": "vitest run" },
+  "devDependencies": { "@types/node": "22.15.3", "typescript": "5.8.3", "vitest": "3.1.2" }
 }

@@ -277,3 +277,74 @@ begin
   perform tt.ok(tt.fails('select claim_owner()', 'permission denied'), 'anon cannot call claim_owner');
   perform tt.reset();
 end $$;
+
+-- ------------------------------------------------------------ manual posting RPC
+do $$
+declare
+  a uuid := '00000000-0000-0000-0000-00000000000a'; c uuid := '00000000-0000-0000-0000-00000000000c';
+  br1 uuid := current_setting('t.br1')::uuid;
+  sched uuid; draft uuid; n int;
+begin
+  select id into sched from content_items where title = 'A item';
+  select id into draft from content_items where title = 'C draft';
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', 'https://x.com/a/status/1')$q$, draft), 'approved first'),
+    'cannot record a manual post for an unapproved item');
+  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'instagram', 'https://instagram.com/p/1')$q$, sched), 'not manual'),
+    'only manual platforms can be recorded by hand');
+  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', 'not a url')$q$, sched), 'URL is required'),
+    'a real URL is required');
+  perform mark_posted_manual(sched, 'x', 'https://x.com/thedailyheckler/status/1');
+  perform tt.reset();
+  perform tt.as_user(c, 'c@example.com');
+  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', 'https://x.com/a/status/2')$q$, sched), 'only approvers'),
+    'viewers cannot record a manual post');
+  perform tt.reset();
+  select count(*) into n from publications where content_item_id = sched and mode = 'manual';
+  perform tt.ok(n = 1, 'manual post recorded once');
+  perform tt.ok((select count(*) from unapproved_publications) = 0, 'unapproved_publications still 0 rows');
+end $$;
+
+-- ------------------------------------------------------------ approved text is locked; edits void an approval
+do $$
+declare a uuid := '00000000-0000-0000-0000-00000000000a'; br1 uuid := current_setting('t.br1')::uuid; item uuid;
+begin
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  insert into content_items(brand_id, title, created_by) values (br1, 'D item', a) returning id into item;
+  insert into platform_variants(brand_id, content_item_id, platform, text) values (br1, item, 'instagram', 'v1');
+  perform tt.reset();
+end $$;
+do $$
+declare a uuid := '00000000-0000-0000-0000-00000000000a'; br1 uuid := current_setting('t.br1')::uuid; item uuid;
+begin
+  select id into item from content_items where title = 'D item';
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  insert into approvals(brand_id, content_item_id, user_id, decision) values (br1, item, a, 'approved');
+  update content_items set status = 'approved' where id = item;
+  perform tt.ok(tt.fails(format($q$update platform_variants set text = 'sneaky' where content_item_id = %L$q$, item), 'withdraw the approval'),
+    'approved text cannot be edited');
+  perform tt.ok(tt.fails(format($q$insert into platform_variants(brand_id, content_item_id, platform, text) values (%L, %L, 'x', 'new')$q$, br1, item), 'withdraw the approval'),
+    'variants cannot be added to an approved item');
+  update content_items set status = 'queued' where id = item;   -- withdraw
+  perform tt.reset();
+end $$;
+do $$
+declare a uuid := '00000000-0000-0000-0000-00000000000a'; item uuid;
+begin
+  select id into item from content_items where title = 'D item';
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  update platform_variants set text = 'v2' where content_item_id = item;
+  perform tt.ok(tt.fails(format($q$update content_items set status = 'approved' where id = %L$q$, item), 'no valid approval'),
+    'an approval older than the last text edit no longer counts');
+  perform tt.reset();
+end $$;
+do $$
+declare a uuid := '00000000-0000-0000-0000-00000000000a'; br1 uuid := current_setting('t.br1')::uuid; item uuid;
+begin
+  select id into item from content_items where title = 'D item';
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  insert into approvals(brand_id, content_item_id, user_id, decision) values (br1, item, a, 'edited_approved');
+  update content_items set status = 'approved' where id = item;
+  perform tt.ok((select status from content_items where id = item) = 'approved', 're-approving after the edit works');
+  perform tt.reset();
+end $$;

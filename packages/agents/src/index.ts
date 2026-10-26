@@ -4,6 +4,9 @@ export * from "./api-provider.js";
 export * from "./mock-provider.js";
 export * from "./run-agent.js";
 export * from "./agents.js";
+export * from "./platforms.js";
+export * from "./schemas.js";
+export * from "./local-checks.js";
 
 import { ClaudeCliProvider } from "./claude-cli.js";
 import { MockProvider } from "./mock-provider.js";
