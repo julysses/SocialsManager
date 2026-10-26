@@ -1,5 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isConfigured, supabase } from "./lib/supabase";
 
 export interface Brand {
@@ -37,23 +37,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [brandId, setBrandId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // getSession() and onAuthStateChange both fire on load; run the bootstrap once per user.
+  const inflight = useRef<string | null>(null);
+  const done = useRef<string | null>(null);
+
   const bootstrap = useCallback(async (s: Session | null) => {
     setSession(s);
-    if (!s) return setStatus("signed_out");
+    if (!s) {
+      inflight.current = null;
+      done.current = null;
+      return setStatus("signed_out");
+    }
+    if (inflight.current === s.user.id || done.current === s.user.id) return;
+    inflight.current = s.user.id;
     // First allowlisted login becomes owner of the seeded workspace; later logins are a no-op.
     const claim = await supabase.rpc("claim_owner");
     if (claim.error) {
+      inflight.current = null;
       setError(claim.error.message);
       return setStatus("denied");
     }
     setRole(claim.data as string);
     const res = await supabase.from("brands").select("id,name,slug,timezone,settings").order("name");
     if (res.error || !res.data?.length) {
+      inflight.current = null;
       setError(res.error?.message ?? "No brands available for this account.");
       return setStatus("denied");
     }
     setBrands(res.data as Brand[]);
     setBrandId((cur) => cur ?? res.data![0]!.id);
+    done.current = s.user.id;
+    inflight.current = null;
     setStatus("ready");
   }, []);
 
