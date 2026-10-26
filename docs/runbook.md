@@ -11,7 +11,7 @@
    - Optional variable `CF_PAGES_PROJECT` (default `social-os`). The publishable key is public by design and is baked into the workflows.
 4. **Edge Function**: `supabase functions deploy enqueue`, then `supabase secrets set GITHUB_DISPATCH_TOKEN=...` (fine-grained PAT, this repo only, Actions: write → needs "Contents: write" for repository_dispatch).
 5. **Merge to `main`**: `repository_dispatch`, `schedule` and `deploy-web` only run from the default branch.
-6. Create the Cloudflare Pages project `social-os` (direct upload) once.
+6. The Cloudflare Pages project `social-os` is created automatically by the deploy workflow.
 
 ## Gate check
 Sign in → Settings → **Run test job**. Within ~1 minute Worker health shows the job and an `agent_runs` row (`hello`, `claude-cli`).
