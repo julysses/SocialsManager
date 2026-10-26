@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AgentOutputError, ClaudeCliProvider, MockProvider, UsageLimitError, createProvider, extractJson, helloAgent, runAgent } from "../src/index.js";
-import { parseCliOutput, parseRetryAt } from "../src/claude-cli.js";
+import { buildChildEnv, parseCliOutput, parseRetryAt } from "../src/claude-cli.js";
 import { ApiProvider } from "../src/api-provider.js";
 
 describe("extractJson", () => {
@@ -66,5 +66,18 @@ describe("provider factory", () => {
     expect(createProvider("claude-cli").mode).toBe("claude-cli");
     expect(() => createProvider("api")).toThrow(/unsupported/);
     await expect(new ApiProvider().complete({ system: "", prompt: "" })).rejects.toThrow(/not enabled/);
+  });
+});
+
+describe("buildChildEnv", () => {
+  it("strips whitespace and line breaks from a wrapped OAuth token", () => {
+    const env = buildChildEnv({ CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-abc\ndef ghi\r\n" });
+    expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("sk-ant-oat01-abcdefghi");
+  });
+  it("never passes API keys to the child", () => {
+    const env = buildChildEnv({ ANTHROPIC_API_KEY: "k", ANTHROPIC_AUTH_TOKEN: "t", PATH: "/bin" });
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
+    expect(env.PATH).toBe("/bin");
   });
 });
