@@ -17,7 +17,11 @@ export function Login({ denied, reason, onSignOut }: { denied?: boolean; reason?
     });
     if (error) {
       setState("error");
-      setMessage("Could not send a sign-in link. Only the owner's email is allowed.");
+      setMessage(
+        error.status === 429
+          ? "Too many sign-in emails were requested. Wait about an hour, then request one link and click it once."
+          : `Could not send a sign-in link: ${error.message}`,
+      );
     } else setState("sent");
   }
 
