@@ -67,6 +67,16 @@ export function SettingsPage() {
     void load();
   }
 
+  const [pw, setPw] = useState("");
+  const [pwState, setPwState] = useState<{ msg: string; tone: "success" | "danger" } | null>(null);
+  async function savePassword() {
+    if (pw.length < 10) return setPwState({ msg: "Use at least 10 characters.", tone: "danger" });
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) return setPwState({ msg: error.message, tone: "danger" });
+    setPw("");
+    setPwState({ msg: "Password saved. You can now sign in with your email and password.", tone: "success" });
+  }
+
   if (!brand) return null;
   const health = jobs ? summarizeHealth(jobs) : null;
   const s = brand.settings;
@@ -135,6 +145,22 @@ export function SettingsPage() {
             </table>
           </div>
         )}
+      </Card>
+
+      <Card className="space-y-3">
+        <CardTitle>Account</CardTitle>
+        <p className="text-sm text-muted-foreground">Signed in as {session?.user.email}. Set a password so you never need an emailed link again. You stay signed in on this device.</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <label className="block text-sm" htmlFor="newpw">New password</label>
+            <input
+              id="newpw" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)}
+              className="h-10 w-full rounded-md border border-border bg-muted px-3 text-sm"
+            />
+          </div>
+          <Button onClick={savePassword} disabled={!pw}>Save password</Button>
+        </div>
+        {pwState && <p role="status" className={pwState.tone === "danger" ? "text-sm text-danger" : "text-sm text-success"}>{pwState.msg}</p>}
       </Card>
 
       <Card className="space-y-2">
