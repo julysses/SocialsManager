@@ -21,7 +21,7 @@ jobs:
       - run: npm run build
         env:
           VITE_SUPABASE_URL: https://qwnmeltdckwgsrjxvons.supabase.co
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'placeholder-for-ci-build' }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2HeayprBxGwLemd2ZZzxpA_9YCnhOEM' }}
   sql:
     runs-on: ubuntu-latest
     timeout-minutes: 10

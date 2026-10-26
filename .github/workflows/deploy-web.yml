@@ -23,7 +23,7 @@ jobs:
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://qwnmeltdckwgsrjxvons.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2HeayprBxGwLemd2ZZzxpA_9YCnhOEM' }}
       - name: Deploy to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy apps/web/dist --project-name="${CF_PAGES_PROJECT:-social-os}" --branch=main
         env:
