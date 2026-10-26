@@ -1,0 +1,33 @@
+name: worker
+on:
+  repository_dispatch:
+    types: [job-queued]
+  schedule:
+    - cron: "17 13 * * *" # daily batch (13:17 UTC)
+  workflow_dispatch:
+permissions:
+  contents: read
+# One agent run at a time; later triggers wait (each run drains the whole queue).
+concurrency:
+  group: agents
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Claude Code CLI (pinned)
+        run: npm install -g @anthropic-ai/claude-code@2.1.310
+      - name: Process queued jobs
+        run: npm run start -w apps/worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          MODEL_PROVIDER: claude-cli
