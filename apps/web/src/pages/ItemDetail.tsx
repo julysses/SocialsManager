@@ -37,6 +37,8 @@ export function ItemDetailPage() {
   );
   const [feedback, setFeedback] = useState("");
   const [when, setWhen] = useState("");
+  const [fixNote, setFixNote] = useState<string | null>(null);
+  const [fixGpt, setFixGpt] = useState<string | null>(null);
   const tz = brand?.timezone ?? "America/Chicago";
   const image = useSignedUrl(item?.source_image_path);
 
@@ -151,7 +153,13 @@ export function ItemDetailPage() {
     await load();
   });
 
-  const retryPackage = () => run("retry", async () => {
+  const saveAndRetry = () => run("retry", async () => {
+    const patch: Record<string, string | null> = {};
+    if (fixNote !== null) patch.story_note = fixNote.trim() || null;
+    if (fixGpt !== null) patch.gpt_caption = fixGpt.trim() || null;
+    if (Object.keys(patch).length) must(await supabase.from("content_items").update(patch).eq("id", item!.id));
+    setFixNote(null);
+    setFixGpt(null);
     await enqueueJob({ brandId: item!.brand_id, userId: session!.user.id, kind: "caption_package", itemId: item!.id });
     setMsg({ tone: "success", text: "Retrying." });
     await load();
@@ -195,8 +203,17 @@ export function ItemDetailPage() {
               <CardTitle>{captionJob?.status === "failed" || captionJob?.error ? "Caption writing hit a problem" : "Writing captions…"}</CardTitle>
               {captionJob?.status === "failed" || (captionJob?.status === "queued" && captionJob.error) ? (
                 <>
-                  <p role="alert" className="text-sm text-danger">{captionJob.error}</p>
-                  {canAct && <Button onClick={retryPackage} disabled={!!busy}>Try again</Button>}
+                  <p role="alert" className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-danger/10 p-3 text-sm text-danger">{captionJob.error}</p>
+                  {canAct && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Add what is missing (for example the source outlet, date, URL, and the actual news), then try again. Nothing is invented for you.</p>
+                      <label className="block text-sm" htmlFor="fixnote">Story note</label>
+                      <textarea id="fixnote" rows={4} value={fixNote ?? item.story_note ?? ""} onChange={(e) => setFixNote(e.target.value)} className="w-full rounded-md border border-border bg-muted p-3 text-sm" />
+                      <label className="block text-sm" htmlFor="fixgpt">Text from ChatGPT (draft caption)</label>
+                      <textarea id="fixgpt" rows={6} value={fixGpt ?? item.gpt_caption ?? ""} onChange={(e) => setFixGpt(e.target.value)} className="w-full rounded-md border border-border bg-muted p-3 text-sm" />
+                      <Button onClick={saveAndRetry} disabled={!!busy}>{busy === "retry" ? "Sending…" : "Save and try again"}</Button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground" role="status">{captionJob?.status === "running" ? "Claude is writing and checking the captions. This usually takes a minute." : "Queued. The worker starts within a minute; this page updates by itself."}</p>
