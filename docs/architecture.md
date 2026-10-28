@@ -45,3 +45,10 @@ with raw output saved in `agent_runs.raw_output`.
 5. DB locks approved text (`variants_guard`); an approval is void if the text changed afterwards.
 
 Live Metricool publishing is not implemented: `LiveAdapter` refuses until the Phase 2 gate.
+
+## Carousels (migration 0008)
+An item has 1-10 images (`content_images`: position, role cover/detail, label, alt text). The owner uploads them in any order;
+`caption_packager` looks at every image, places each exactly once (code verifies), picks the cover, orders the details to match the
+"Swipe for ..." line, and writes per-slide alt text. The owner can reorder (arrows) until approval; images then lock, and an approval older
+than the last image change is void. The cover is mirrored to `content_items.source_image_path` for thumbnails. The publisher caps X and
+Bluesky at 4 images; Stories carry the cover only. Hand-off downloads are numbered in posting order.

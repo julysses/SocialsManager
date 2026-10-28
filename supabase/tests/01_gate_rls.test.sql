@@ -366,3 +366,42 @@ begin
   perform tt.reset();
   perform tt.ok((select count(*) from unapproved_publications) = 0, 'unapproved_publications still 0 rows after hand-off');
 end $$;
+
+-- ------------------------------------------------------------ carousel images
+do $$
+declare a uuid := '00000000-0000-0000-0000-00000000000a'; b uuid := '00000000-0000-0000-0000-00000000000b'; c uuid := '00000000-0000-0000-0000-00000000000c';
+  br1 uuid := current_setting('t.br1')::uuid; item uuid;
+begin
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  insert into content_items(brand_id, title, created_by) values (br1, 'E item', a) returning id into item;
+  insert into content_images(brand_id, content_item_id, storage_path, position, role) values (br1, item, 'p/1.png', 1, 'cover'), (br1, item, 'p/2.png', 2, 'detail');
+  perform tt.ok(tt.fails(format($q$insert into content_images(brand_id, content_item_id, storage_path, position) values (%L, %L, 'p/3.png', 11)$q$, br1, item), 'check'), 'at most 10 slides');
+  perform tt.ok(tt.fails(format($q$insert into content_images(brand_id, content_item_id, storage_path, position) values (%L, %L, 'p/1.png', 3)$q$, br1, item), 'duplicate'), 'the same image cannot be added twice');
+  update content_images set position = 2 where content_item_id = item and storage_path = 'p/1.png';
+  update content_images set position = 1 where content_item_id = item and storage_path = 'p/2.png';
+  perform tt.ok((select storage_path from content_images where content_item_id = item order by position limit 1) = 'p/2.png', 'slides can be reordered before approval');
+  perform tt.reset();
+  perform tt.as_user(c, 'c@example.com');
+  perform tt.ok(tt.fails(format($q$update content_images set position = 5 where content_item_id = %L$q$, item), 'xx') or (select count(*) from content_images where content_item_id = item and position = 5) = 0, 'viewers cannot reorder');
+  perform tt.reset();
+  perform tt.as_user(b, 'b@example.com');
+  perform tt.ok((select count(*) from content_images) = 0, 'other tenants cannot see slides');
+  perform tt.reset();
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  insert into approvals(brand_id, content_item_id, user_id, decision) values (br1, item, a, 'approved');
+  update content_items set status = 'approved' where id = item;
+  perform tt.ok(tt.fails(format($q$update content_images set position = 1 where content_item_id = %L and storage_path = 'p/1.png'$q$, item), 'withdraw the approval'), 'approved images are locked');
+  perform tt.ok(tt.fails(format($q$insert into content_images(brand_id, content_item_id, storage_path, position) values (%L, %L, 'p/4.png', 3)$q$, br1, item), 'withdraw the approval'), 'no new slides after approval');
+  update content_items set status = 'queued' where id = item;
+  perform tt.reset();
+end $$;
+do $$
+declare a uuid := '00000000-0000-0000-0000-00000000000a'; item uuid;
+begin
+  select id into item from content_items where title = 'E item';
+  perform tt.as_user(a, 'julyssesd@gmail.com');
+  update content_images set position = 1 where content_item_id = item and storage_path = 'p/1.png';
+  update content_images set position = 2 where content_item_id = item and storage_path = 'p/2.png';
+  perform tt.ok(tt.fails(format($q$update content_items set status = 'approved' where id = %L$q$, item), 'no valid approval'), 'an approval older than an image change no longer counts');
+  perform tt.reset();
+end $$;

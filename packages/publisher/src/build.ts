@@ -1,5 +1,8 @@
 import type { BrandSettings, Platform, PublishItem, PublishPayload, PublishVariant } from "./types.js";
 
+/** Platform image limits. X and Bluesky take 4; Instagram and Facebook up to 10. */
+const MAX_IMAGES: Partial<Record<string, number>> = { x: 4, bluesky: 4, threads: 20, instagram: 10, facebook: 10 };
+
 export class PublishRefused extends Error {
   constructor(message: string) {
     super(message);
@@ -30,7 +33,8 @@ export interface BuildOutput {
 export function buildPayloads({ item, variants, settings, hasApproval, now = new Date() }: BuildInput): BuildOutput {
   if (item.status !== "scheduled") throw new PublishRefused(`item is "${item.status}", not "scheduled"`);
   if (!hasApproval) throw new PublishRefused("no approval on record for this item");
-  if (!item.source_image_path) throw new PublishRefused("item has no image");
+  const all = item.image_paths?.length ? item.image_paths : item.source_image_path ? [item.source_image_path] : [];
+  if (all.length === 0) throw new PublishRefused("item has no image");
 
   const when = new Date(item.planned_for ?? now).toISOString();
   const auto: PublishPayload[] = [];
@@ -46,7 +50,8 @@ export function buildPayloads({ item, variants, settings, hasApproval, now = new
       text: v.text,
       hashtags: v.hashtags,
       alt_text: v.alt_text,
-      image_path: item.source_image_path,
+      image_path: all[0]!,
+      image_paths: all.slice(0, MAX_IMAGES[v.platform] ?? 10),
       scheduled_for: when,
     };
     (cfg.via === "manual" ? manual : auto).push(post);
@@ -60,7 +65,7 @@ export function buildPayloads({ item, variants, settings, hasApproval, now = new
       const story: PublishPayload = {
         platform, format: "story", text: "", hashtags: [],
         alt_text: variants.find((v) => v.platform === platform)?.alt_text ?? null,
-        image_path: item.source_image_path, scheduled_for: when,
+        image_path: all[0]!, image_paths: [all[0]!], scheduled_for: when,
       };
       (cfg.via === "manual" ? manual : auto).push(story);
     }

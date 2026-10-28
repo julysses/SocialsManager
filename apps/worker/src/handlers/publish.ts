@@ -16,7 +16,8 @@ export const publish: Handler = async ({ job, db, log }) => {
   const hasApproval = await db.hasApproval(item.id);
   let built;
   try {
-    built = buildPayloads({ item, variants, settings: brand.settings, hasApproval });
+    const images = (await db.getImages(item.id)).map((i) => i.storage_path);
+    built = buildPayloads({ item: { ...item, image_paths: images }, variants, settings: brand.settings, hasApproval });
   } catch (e) {
     if (e instanceof PublishRefused) throw new Error(`publish refused: ${e.message}`);
     throw e;

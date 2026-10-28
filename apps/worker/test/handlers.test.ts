@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MockProvider } from "@socialos/agents";
 import { processJob } from "../src/process.js";
-import { FakeDb, checkerReply, goodVariants, item, job, packagerReply } from "./fake-db.js";
+import { FakeDb, checkerReply, goodVariants, item, job, packagerReply, slide } from "./fake-db.js";
 
 const scripted = (...replies: string[]) => new MockProvider((_r, n) => replies[Math.min(n - 1, replies.length - 1)]!);
 
@@ -21,6 +21,7 @@ describe("caption_package", () => {
     expect(db.variants.get("i1")).toHaveLength(5);
     expect(db.checks[0]).toMatchObject({ verdict: "passed", voice_score: 3 });
     expect(db.downloads).toEqual(["b1/cartoon.png"]);
+    expect((await db.getImages("i1")).map((s) => s.role)).toEqual(["cover"]);
     expect(db.runs.map((r) => r.agent_key)).toEqual(["caption_packager", "brand_checker"]);
     // the checker is a separate call with a different system prompt
     expect(p.calls[0]!.system).not.toBe(p.calls[1]!.system);
@@ -90,6 +91,43 @@ describe("caption_package", () => {
   });
 });
 
+describe("caption_package with a carousel", () => {
+  const three = () => {
+    const db = new FakeDb();
+    db.items.set("i1", item({ source_image_path: "b1/a.png" }));
+    db.images.set("i1", ["a", "b", "c"].map((n, i) => ({ storage_path: `b1/${n}.png`, position: i + 1, role: "other" as const, label: null, alt_text: null })));
+    return db;
+  };
+  const jobOf = () => job({ kind: "caption_package", payload: { content_item_id: "i1" } });
+
+  it("shows the model every image and stores the order, roles, labels and the new cover", async () => {
+    const db = three();
+    const reply = packagerReply(goodVariants(), [slide("img3", "cover", "the full cartoon"), slide("img1", "detail", "the empty purse"), slide("img2", "detail", "the knife")]);
+    const p = new MockProvider((_r, n) => (n === 1 ? reply : checkerReply()));
+    expect(await processJob(jobOf(), { db, provider: p })).toBe("succeeded");
+    expect(db.downloads).toEqual(["b1/a.png", "b1/b.png", "b1/c.png"]);
+    expect(p.calls[0]!.attachments).toHaveLength(3);
+    expect(p.calls[0]!.prompt).toContain("img3:");
+    const stored = await db.getImages("i1");
+    expect(stored.map((s) => `${s.position}:${s.storage_path}:${s.role}:${s.label}`)).toEqual([
+      "1:b1/c.png:cover:the full cartoon", "2:b1/a.png:detail:the empty purse", "3:b1/b.png:detail:the knife",
+    ]);
+    expect(db.items.get("i1")!.source_image_path).toBe("b1/c.png");
+    expect(db.variants.get("i1")![0]!.alt_text).toBe("Alt text for img3.");
+    expect(p.calls[1]!.prompt).toContain("2. detail: the empty purse");
+  });
+
+  it("rejects an order that drops or repeats an image", async () => {
+    for (const slides of [[slide("img1", "cover"), slide("img2")], [slide("img1", "cover"), slide("img1"), slide("img2"), slide("img3")], [slide("img1", "cover"), slide("img2"), slide("img9")]]) {
+      const db = three();
+      await processJob({ ...jobOf(), attempts: 3 }, { db, provider: new MockProvider(() => packagerReply(goodVariants(), slides)) });
+      expect(db.runs.at(-1)!.error).toMatch(/left out|twice|unknown image/);
+      expect(db.items.get("i1")!.status).toBe("draft");
+      expect((await db.getImages("i1")).map((s) => s.role)).toEqual(["other", "other", "other"]);
+    }
+  });
+});
+
 describe("voice_build", () => {
   const reply = JSON.stringify({ status: "ok", voice_guide_md: "# Voice guide\n\n## Persona\nDry and sharp.", banned_words_md: "# Banned words\n- x", hook_library_md: "# Hook library\n1. ..." });
   it("needs at least 5 imported posts", async () => {
@@ -113,6 +151,7 @@ describe("publish (dry run)", () => {
   const ready = () => {
     const db = setup({ status: "scheduled", planned_for: "2026-11-01T14:00:00Z" });
     db.variants.set("i1", (["instagram", "facebook", "x", "threads", "bluesky"] as const).map((platform) => ({ platform, text: `t ${platform}`, hashtags: ["a"], alt_text: "alt" })));
+    db.images.set("i1", [{ storage_path: "b1/cartoon.png", position: 1, role: "cover", label: null, alt_text: null }]);
     db.approved.add("i1");
     return db;
   };

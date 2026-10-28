@@ -18,11 +18,22 @@ export type Variants = z.infer<typeof variantsSchema>;
 
 export const needsInfo = z.object({ status: z.literal("needs_info"), missing: z.array(z.string()).min(1) });
 
+export const slideSchema = z.object({
+  /** The id the prompt gave the image (img1, img2, ...). */
+  image: z.string().regex(/^img\d{1,2}$/),
+  role: z.enum(["cover", "detail"]),
+  /** Short description of what this slide shows, used in the "Swipe for ..." line. */
+  label: z.string().min(1).max(120),
+  alt_text: z.string().min(1).max(400),
+});
+export type Slide = z.infer<typeof slideSchema>;
+
 export const captionPackageOutput = z.union([
   z.object({
     status: z.literal("ok"),
+    /** Every image exactly once, in carousel order (cover first). */
+    slides: z.array(slideSchema).min(1).max(10),
     variants: variantsSchema,
-    alt_text: z.string().min(1).max(1000),
     change_note: z.string().min(1).max(400),
   }),
   needsInfo,

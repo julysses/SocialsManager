@@ -6,6 +6,8 @@ export interface PublishItem {
   status: string;
   planned_for: string | null;
   source_image_path: string | null;
+  /** Storage paths in carousel order (cover first). Falls back to source_image_path. */
+  image_paths?: string[];
 }
 
 export interface PublishVariant {
@@ -26,8 +28,10 @@ export interface PublishPayload {
   text: string;
   hashtags: string[];
   alt_text: string | null;
-  /** Storage path of the cartoon. */
+  /** Storage path of the cover. */
   image_path: string;
+  /** All slides in order (already trimmed to the platform's limit). Stories carry the cover only. */
+  image_paths: string[];
   scheduled_for: string;
 }
 

@@ -1,4 +1,4 @@
-import type { AgentRunRow, BrandRow, CheckRow, HistoryRow, ItemRow, Job, PublicationRow, VariantRow, WorkerDb } from "../src/types.js";
+import type { AgentRunRow, BrandRow, CheckRow, HistoryRow, ImageRow, ItemRow, Job, PublicationRow, VariantRow, WorkerDb } from "../src/types.js";
 
 /** In-memory WorkerDb. Mirrors the real gate: the item must already be approved/scheduled for publications. */
 export class FakeDb implements WorkerDb {
@@ -17,6 +17,7 @@ export class FakeDb implements WorkerDb {
   approved = new Set<string>();
   publications: PublicationRow[] = [];
   downloads: string[] = [];
+  images = new Map<string, ImageRow[]>();
 
   async requeueStuck() { return 0; }
   async claim() { return this.queue.splice(0, 5); }
@@ -30,9 +31,12 @@ export class FakeDb implements WorkerDb {
   async getVariants(id: string) { return this.variants.get(id) ?? []; }
   async upsertVariants(_b: string, id: string, rows: VariantRow[]) { this.variants.set(id, rows); }
   async insertCheck(r: CheckRow) { this.checks.push(r); }
-  async updateItem(id: string, patch: { status?: string; change_note?: string | null }) {
+  async getImages(id: string) { return [...(this.images.get(id) ?? [])].sort((a, b) => a.position - b.position); }
+  async setImages(_b: string, id: string, rows: ImageRow[]) { this.images.set(id, rows); }
+  async updateItem(id: string, patch: { status?: string; source_image_path?: string | null; change_note?: string | null }) {
     const it = this.items.get(id)!;
     if (patch.status) it.status = patch.status;
+    if (patch.source_image_path) it.source_image_path = patch.source_image_path;
     this.calls.push({ fn: "updateItem", args: [id, patch] });
   }
   async getPostHistory() { return this.history; }
@@ -62,6 +66,7 @@ export const goodVariants = () => ({
   threads: v("They said it was a hole. It's a canyon."),
   bluesky: v("They said it was a hole. It's a canyon."),
 });
-export const packagerReply = (variants = goodVariants()) =>
-  JSON.stringify({ status: "ok", variants, alt_text: "A cartoon of two senators peering into a canyon labelled budget.", change_note: "Added hashtags to Instagram." });
+export const slide = (image: string, role: "cover" | "detail" = "detail", label = "a panel") => ({ image, role, label, alt_text: `Alt text for ${image}.` });
+export const packagerReply = (variants = goodVariants(), slides = [slide("img1", "cover", "the full cartoon")]) =>
+  JSON.stringify({ status: "ok", slides, variants, change_note: "Added hashtags to Instagram." });
 export const checkerReply = (o: Record<string, unknown> = {}) => JSON.stringify({ status: "ok", voice_score: 3, flags: [], verdict: "passed", ...o });
