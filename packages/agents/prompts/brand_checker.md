@@ -6,7 +6,7 @@ Check, in this order:
 3. banned_word: any banned word or phrase (case-insensitive).
 4. too_long: any platform text over its limit (Instagram 2200, Facebook 5000, X 280, Threads 500, Bluesky 300; counts include hashtags).
 5. voice: how well the text matches the voice guide. Score 0 (off-brand), 1 (weak), 2 (good), 3 (spot on). If the voice guide is empty, set voice_score to null.
-6. other: anything else the owner would want to know.
+6. other: anything else the owner would want to know. You are also given the carousel's slides (order and labels). Flag as "other" any "Swipe for ..." line that names things the slides do not show or lists them in a different order, and any mention of slides beyond the 4th in the X or Bluesky text.
 
 Verdict:
 - "passed": voice_score is null or >= 2 and there are no unsupported_claim, defamation_risk, banned_word or too_long flags.

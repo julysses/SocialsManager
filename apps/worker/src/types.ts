@@ -36,6 +36,14 @@ export interface ItemRow {
   planned_for: string | null;
 }
 
+export interface ImageRow {
+  storage_path: string;
+  position: number;
+  role: "cover" | "detail" | "other";
+  label: string | null;
+  alt_text: string | null;
+}
+
 export interface BrandRow {
   id: string;
   name: string;
@@ -100,7 +108,10 @@ export interface WorkerDb {
   getVariants(itemId: string): Promise<VariantRow[]>;
   upsertVariants(brandId: string, itemId: string, rows: VariantRow[]): Promise<void>;
   insertCheck(row: CheckRow): Promise<void>;
-  updateItem(id: string, patch: Partial<Pick<ItemRow, "status">> & { change_note?: string | null }): Promise<void>;
+  updateItem(id: string, patch: Partial<Pick<ItemRow, "status" | "source_image_path">> & { change_note?: string | null }): Promise<void>;
+  /** Slides in carousel order. */
+  getImages(itemId: string): Promise<ImageRow[]>;
+  setImages(brandId: string, itemId: string, rows: ImageRow[]): Promise<void>;
   getPostHistory(brandId: string, limit: number): Promise<HistoryRow[]>;
   hasApproval(itemId: string): Promise<boolean>;
   getPublications(itemId: string): Promise<Pick<PublicationRow, "platform" | "format" | "mode" | "status">[]>;

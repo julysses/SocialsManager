@@ -12,6 +12,7 @@ const settings = {
   },
 };
 const item = (over: Partial<PublishItem> = {}): PublishItem => ({ id: "i1", brand_id: "b1", status: "scheduled", planned_for: "2026-11-01T14:00:00Z", source_image_path: "b1/a.png", ...over });
+const six = ["b1/1.png", "b1/2.png", "b1/3.png", "b1/4.png", "b1/5.png", "b1/6.png"];
 const v = (platform: PublishVariant["platform"]): PublishVariant => ({ platform, text: `text ${platform}`, hashtags: ["a"], alt_text: "alt" });
 const all = (["instagram", "facebook", "x", "threads", "bluesky"] as const).map(v);
 
@@ -46,6 +47,23 @@ describe("hand-off (free Metricool plan: Instagram and Facebook posted by hand)"
     const { auto, manual } = buildPayloads({ item: item(), variants: all, settings: handoff, hasApproval: true });
     expect(auto).toEqual([]);
     expect(manual.map((p) => `${p.platform}:${p.format}`).sort()).toEqual(["facebook:post", "facebook:story", "instagram:post", "instagram:story", "x:post"]);
+  });
+});
+
+describe("carousels", () => {
+  it("sends all slides in order to Instagram/Facebook, caps X at 4, and Stories carry only the cover", () => {
+    const handoff = { ...settings, platforms: { ...settings.platforms, instagram: { via: "manual" as const, story_to_both: true }, facebook: { via: "manual" as const } } };
+    const { manual } = buildPayloads({ item: item({ image_paths: six, source_image_path: six[0]! }), variants: all, settings: handoff, hasApproval: true });
+    const by = (platform: string, format: string) => manual.find((p) => p.platform === platform && p.format === format)!;
+    expect(by("instagram", "post").image_paths).toEqual(six);
+    expect(by("facebook", "post").image_paths).toEqual(six);
+    expect(by("x", "post").image_paths).toEqual(six.slice(0, 4));
+    expect(by("instagram", "story").image_paths).toEqual([six[0]]);
+    expect(by("instagram", "post").image_path).toBe("b1/1.png");
+  });
+  it("still works for single-image items", () => {
+    const { auto } = buildPayloads({ item: item(), variants: all, settings, hasApproval: true });
+    expect(auto[0]!.image_paths).toEqual(["b1/a.png"]);
   });
 });
 

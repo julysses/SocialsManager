@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { AgentRunRow, BrandRow, CheckRow, HistoryRow, ItemRow, Job, PublicationRow, VariantRow, WorkerDb } from "./types.js";
+import type { AgentRunRow, BrandRow, CheckRow, HistoryRow, ImageRow, ItemRow, Job, PublicationRow, VariantRow, WorkerDb } from "./types.js";
 
 function must<T>(res: { data: T; error: { message: string } | null }, what: string): T {
   if (res.error) throw new Error(`${what}: ${res.error.message}`);
@@ -80,7 +80,17 @@ export class SupabaseDb implements WorkerDb {
     must(await this.sb.from("checks").insert(row), "insert check");
   }
 
-  async updateItem(id: string, patch: { status?: string; change_note?: string | null }): Promise<void> {
+  async getImages(itemId: string): Promise<ImageRow[]> {
+    const r = await this.sb.from("content_images").select("storage_path,position,role,label,alt_text").eq("content_item_id", itemId).order("position").order("created_at");
+    return (must(r, "get images") ?? []) as ImageRow[];
+  }
+
+  async setImages(brandId: string, itemId: string, rows: ImageRow[]): Promise<void> {
+    const payload = rows.map((r) => ({ brand_id: brandId, content_item_id: itemId, storage_path: r.storage_path, position: r.position, role: r.role, label: r.label, alt_text: r.alt_text }));
+    must(await this.sb.from("content_images").upsert(payload, { onConflict: "content_item_id,storage_path" }), "set images");
+  }
+
+  async updateItem(id: string, patch: { status?: string; source_image_path?: string | null; change_note?: string | null }): Promise<void> {
     must(await this.sb.from("content_items").update(patch).eq("id", id), "update item");
   }
 

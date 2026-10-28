@@ -4,6 +4,7 @@ import { LIMITS, PLATFORM_LABEL, fullText } from "@socialos/agents/src/platforms
 import { useAuth } from "../auth";
 import { Button } from "../components/ui/button";
 import { HandoffCard } from "../components/HandoffCard";
+import { SlideStrip, type Slide } from "../components/SlideStrip";
 import { Badge, Card, CardTitle } from "../components/ui/card";
 import { PLATFORM_ORDER, STATUS_LABEL, STATUS_TONE, enqueueJob, useLiveReload, useSignedUrl, type Item, type Platform } from "../lib/data";
 import { formatInTz, utcToZonedInput, zonedToUtc } from "../lib/time";
@@ -26,6 +27,7 @@ export function ItemDetailPage() {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [check, setCheck] = useState<Check | null>(null);
   const [pubs, setPubs] = useState<Pub[]>([]);
+  const [slides, setSlides] = useState<Slide[]>([]);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [missing, setMissing] = useState(false);
   const [tab, setTab] = useState<Platform>("instagram");
@@ -44,12 +46,13 @@ export function ItemDetailPage() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [i, v, c, p, j] = await Promise.all([
+    const [i, v, c, p, j, im] = await Promise.all([
       supabase.from("content_items").select("*").eq("id", id).maybeSingle(),
       supabase.from("platform_variants").select("platform,text,hashtags,alt_text,edited_by_owner").eq("content_item_id", id),
       supabase.from("checks").select("verdict,voice_score,flags,created_at").eq("content_item_id", id).order("created_at", { ascending: false }).limit(1),
       supabase.from("publications").select("id,platform,format,mode,status,external_url,scheduled_for,error").eq("content_item_id", id).order("created_at"),
       supabase.from("jobs").select("id,kind,status,error,created_at").eq("content_item_id", id).order("created_at", { ascending: false }).limit(6),
+      supabase.from("content_images").select("id,storage_path,position,role,label,alt_text").eq("content_item_id", id).order("position"),
     ]);
     if (!i.data) return setMissing(true);
     setItem(i.data as Item);
@@ -57,8 +60,9 @@ export function ItemDetailPage() {
     setCheck(((c.data ?? [])[0] as Check | undefined) ?? null);
     setPubs((p.data ?? []) as Pub[]);
     setJobs((j.data ?? []) as JobRow[]);
+    setSlides((im.data ?? []) as Slide[]);
   }, [id]);
-  useLiveReload(["content_items", "jobs", "publications", "checks"], brand?.id, load, 4000);
+  useLiveReload(["content_items", "jobs", "publications", "checks", "content_images"], brand?.id, load, 4000);
 
   // Fill the editors from the database unless the owner has unsaved edits.
   useEffect(() => {
@@ -188,6 +192,7 @@ export function ItemDetailPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="space-y-3">
           {image ? <img src={image} alt={byPlatform.instagram?.alt_text ?? item.title ?? "Cartoon"} className="w-full rounded-lg border border-border" /> : <div className="aspect-square w-full rounded-lg bg-muted" />}
+          {slides.length > 1 && <SlideStrip itemId={item.id} slides={slides} editable={editable} onChanged={() => void load()} onError={(m) => setMsg({ tone: "danger", text: m })} />}
           {item.change_note && <Card className="p-3 sm:p-3"><p className="text-xs text-muted-foreground">What changed from your ChatGPT draft</p><p className="text-sm">{item.change_note}</p></Card>}
           <details className="rounded-lg border border-border p-3 text-sm">
             <summary className="cursor-pointer text-muted-foreground">Your original input</summary>
@@ -323,7 +328,7 @@ export function ItemDetailPage() {
           )}
 
           {(item.status === "approved" || item.status === "scheduled" || item.status === "live") && (
-            <HandoffCard itemId={item.id} imagePath={item.source_image_path} variants={variants} pubs={pubs} platformsCfg={brand?.settings.platforms ?? {}}
+            <HandoffCard itemId={item.id} imagePaths={slides.length ? slides.map((x) => x.storage_path) : item.source_image_path ? [item.source_image_path] : []} variants={variants} pubs={pubs} platformsCfg={brand?.settings.platforms ?? {}}
               canAct={canAct} onChanged={() => void load()} onMessage={setMsg} />
           )}
         </div>

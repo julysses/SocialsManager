@@ -16,9 +16,10 @@ const OPEN: Partial<Record<Platform, (text: string) => { href: string; label: st
 };
 
 /** "Post by hand" panel: the owner copies the approved text, posts it, and records it. Approval is enforced in Postgres. */
-export function HandoffCard({ itemId, imagePath, variants, pubs, platformsCfg, canAct, onChanged, onMessage }: {
+export function HandoffCard({ itemId, imagePaths, variants, pubs, platformsCfg, canAct, onChanged, onMessage }: {
   itemId: string;
-  imagePath: string | null;
+  /** Slides in posting order, cover first. */
+  imagePaths: string[];
   variants: HandoffVariant[];
   pubs: HandoffPub[];
   platformsCfg: Record<string, { via?: string; story_to_both?: boolean; phase?: number }>;
@@ -26,16 +27,17 @@ export function HandoffCard({ itemId, imagePath, variants, pubs, platformsCfg, c
   onChanged: () => void;
   onMessage: (m: { tone: "success" | "danger"; text: string }) => void;
 }) {
-  const [download, setDownload] = useState<string | null>(null);
+  const [downloads, setDownloads] = useState<string[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
+  const pathKey = imagePaths.join("|");
   useEffect(() => {
-    if (!imagePath) return;
     let live = true;
-    supabase.storage.from("cartoons").createSignedUrl(imagePath, 3600, { download: "cartoon.png" }).then(({ data }) => live && setDownload(data?.signedUrl ?? null));
+    Promise.all(imagePaths.map((p, i) => supabase.storage.from("cartoons").createSignedUrl(p, 3600, { download: `${String(i + 1).padStart(2, "0")}-${p.split("/").pop()}` })))
+      .then((r) => live && setDownloads(r.map((x) => x.data?.signedUrl ?? "")));
     return () => { live = false; };
-  }, [imagePath]);
+  }, [pathKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const manual = (p: Platform) => platformsCfg[p]?.via === "manual" && platformsCfg[p]?.phase === undefined;
   const rows: Row[] = [];
@@ -64,7 +66,14 @@ export function HandoffCard({ itemId, imagePath, variants, pubs, platformsCfg, c
         <Badge tone={left === 0 ? "success" : "warning"}>{left === 0 ? "all recorded" : `${left} to go`}</Badge>
       </div>
       <p className="text-xs text-muted-foreground">Approved text only. Copy it, post it in Metricool (or the app), then record it here. When every row is recorded the item turns Live.</p>
-      {download && <a href={download} className="inline-flex min-h-10 items-center rounded-md border border-border px-4 text-sm hover:bg-muted" download>Download the cartoon image</a>}
+      {downloads.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{downloads.length === 1 ? "Image" : `Images in posting order (${downloads.length}). Upload them to the carousel in this order; files are numbered.`}</p>
+          <div className="flex flex-wrap gap-2">
+            {downloads.map((u, i) => u && <a key={i} href={u} download className="inline-flex min-h-10 items-center rounded-md border border-border px-4 text-sm hover:bg-muted">{downloads.length === 1 ? "Download image" : `Download ${i + 1}${i === 0 ? " (cover)" : ""}`}</a>)}
+          </div>
+        </div>
+      )}
       <ul className="space-y-3">
         {rows.map((r) => {
           const v = variants.find((x) => x.platform === r.platform)!;
@@ -80,7 +89,8 @@ export function HandoffCard({ itemId, imagePath, variants, pubs, platformsCfg, c
               </div>
               {!d && (
                 <>
-                  {r.format === "post" ? <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-xs">{text}</pre> : <p className="text-xs text-muted-foreground">Stories carry the image only. Post the downloaded image as a Story.</p>}
+                  {r.format === "post" && r.platform === "x" && downloads.length > 4 && <p className="text-xs text-warning">X takes 4 images: attach downloads 1 to 4.</p>}
+                  {r.format === "post" ? <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-xs">{text}</pre> : <p className="text-xs text-muted-foreground">Stories carry one image: the cover{downloads.length > 1 ? " (download 1)" : ""}.</p>}
                   <div className="flex flex-wrap gap-2">
                     {r.format === "post" && <Button variant="outline" onClick={() => void copy(text, `${r.title} text`)}>Copy text</Button>}
                     {open && <a className="inline-flex min-h-10 items-center rounded-md border border-border px-4 text-sm hover:bg-muted" href={open.href} target="_blank" rel="noreferrer">{open.label} ↗</a>}
