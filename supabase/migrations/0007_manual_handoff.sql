@@ -5,9 +5,8 @@ update brands
    set settings = jsonb_set(jsonb_set(settings, '{platforms,instagram,via}', '"manual"'), '{platforms,facebook,via}', '"manual"')
  where slug = 'daily-heckler';
 
-drop function mark_posted_manual(uuid, platform_t, text);
-
-create function mark_posted_manual(p_item uuid, p_platform platform_t, p_url text, p_format text default 'post') returns uuid
+-- The older 3-argument mark_posted_manual stays (it cannot bypass the gate); the app uses this one.
+create function mark_posted_handoff(p_item uuid, p_platform platform_t, p_url text, p_format text default 'post') returns uuid
 language plpgsql security definer set search_path = public as $$
 declare
   v_brand uuid;
@@ -58,5 +57,5 @@ begin
   end if;
   return v_id;
 end $$;
-revoke all on function mark_posted_manual(uuid, platform_t, text, text) from public, anon;
-grant execute on function mark_posted_manual(uuid, platform_t, text, text) to authenticated;
+revoke all on function mark_posted_handoff(uuid, platform_t, text, text) from public, anon;
+grant execute on function mark_posted_handoff(uuid, platform_t, text, text) to authenticated;

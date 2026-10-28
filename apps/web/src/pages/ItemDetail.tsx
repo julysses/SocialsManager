@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { LIMITS, PLATFORM_LABEL, fullText } from "@socialos/agents/src/platforms";
 import { useAuth } from "../auth";
 import { Button } from "../components/ui/button";
+import { HandoffCard } from "../components/HandoffCard";
 import { Badge, Card, CardTitle } from "../components/ui/card";
 import { PLATFORM_ORDER, STATUS_LABEL, STATUS_TONE, enqueueJob, useLiveReload, useSignedUrl, type Item, type Platform } from "../lib/data";
 import { formatInTz, utcToZonedInput, zonedToUtc } from "../lib/time";
@@ -36,7 +37,6 @@ export function ItemDetailPage() {
   );
   const [feedback, setFeedback] = useState("");
   const [when, setWhen] = useState("");
-  const [xUrl, setXUrl] = useState("");
   const tz = brand?.timezone ?? "America/Chicago";
   const image = useSignedUrl(item?.source_image_path);
 
@@ -147,7 +147,7 @@ export function ItemDetailPage() {
     if (!now && at.getTime() < Date.now() - 60_000) throw new Error("That time is in the past.");
     await setStatus("scheduled", { planned_for: at.toISOString() });
     const job = await enqueueJob({ brandId: item!.brand_id, userId: session!.user.id, kind: "publish", itemId: item!.id });
-    setMsg({ tone: "success", text: `${now ? "Posting now" : "Scheduled for " + formatInTz(at.toISOString(), tz)}. ${brand?.settings.publish_mode === "live" ? "" : "Dry run: nothing is sent to a platform yet."}${job.wakeError ? " (The worker will pick it up shortly.)" : ""}` });
+    setMsg({ tone: "success", text: `${now ? "Posting now" : "Scheduled for " + formatInTz(at.toISOString(), tz)}. Nothing is sent automatically: post it by hand from the panel below.${job.wakeError ? " (The worker will pick it up shortly.)" : ""}` });
     await load();
   });
 
@@ -157,21 +157,11 @@ export function ItemDetailPage() {
     await load();
   });
 
-  const markPosted = () => run("posted", async () => {
-    must(await supabase.rpc("mark_posted_manual", { p_item: item!.id, p_platform: "x", p_url: xUrl.trim() }));
-    setXUrl("");
-    setMsg({ tone: "success", text: "Recorded." });
-    await load();
-  });
-
   if (missing) return <p className="text-sm text-muted-foreground">That item was not found. <Link to="/queue" className="text-primary underline">Back to the queue</Link></p>;
   if (!item) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
   const captionJob = jobs.find((j) => j.kind === "caption_package");
   const publishJob = jobs.find((j) => j.kind === "publish");
-  const xText = variants.find((v) => v.platform === "x");
-  const xFull = xText ? fullText(xText.text, xText.hashtags) : "";
-  const manualPubs = pubs.filter((p) => p.mode === "manual");
   const showSchedule = item.status === "approved" && canAct;
   const post = drafts[tab];
   const postLen = post ? fullText(post.text, parseTags(post.tags)).length : 0;
@@ -185,7 +175,7 @@ export function ItemDetailPage() {
         <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
       </div>
       {msg && <p role={msg.tone === "danger" ? "alert" : "status"} className={`rounded-md p-3 text-sm ${msg.tone === "danger" ? "bg-danger/15 text-danger" : "bg-success/15 text-success"}`}>{msg.text}</p>}
-      {brand?.settings.publish_mode !== "live" && <p className="rounded-md bg-warning/10 p-2 text-xs text-warning">Dry-run mode: scheduling records what would be sent. Nothing is posted to Instagram or Facebook yet.</p>}
+      {brand?.settings.publish_mode !== "live" && <p className="rounded-md bg-warning/10 p-2 text-xs text-warning">Hand-off mode: nothing is sent to Instagram, Facebook or X automatically. After approving, you copy the text and post it yourself.</p>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="space-y-3">
@@ -300,7 +290,7 @@ export function ItemDetailPage() {
               <CardTitle>{item.status === "live" ? "Live" : "Scheduled"}{item.planned_for ? ` · ${formatInTz(item.planned_for, tz)}` : ""}</CardTitle>
               {publishJob && (publishJob.status === "failed" || (publishJob.status === "queued" && publishJob.error)) && <p role="alert" className="text-sm text-danger">Publishing problem: {publishJob.error}</p>}
               {publishJob && publishJob.status !== "succeeded" && !publishJob.error && <p className="text-xs text-muted-foreground" role="status">Publish job: {publishJob.status}…</p>}
-              {pubs.filter((p) => p.mode !== "manual").length === 0 ? <p className="text-sm text-muted-foreground">No publication records yet.</p> : (
+              {pubs.filter((p) => p.mode !== "manual").length === 0 ? <p className="text-sm text-muted-foreground">Nothing is sent automatically. Use the Post by hand panel below at your scheduled time.</p> : (
                 <ul className="space-y-1 text-sm">
                   {pubs.filter((p) => p.mode !== "manual").map((p) => (
                     <li key={p.id} className="flex flex-wrap items-center gap-2">
@@ -315,26 +305,9 @@ export function ItemDetailPage() {
             </Card>
           )}
 
-          {(item.status === "approved" || item.status === "scheduled" || item.status === "live") && xText && (
-            <Card className="space-y-2">
-              <CardTitle>X (you post this one by hand)</CardTitle>
-              <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">{xFull}</pre>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => void navigator.clipboard.writeText(xFull).then(() => setMsg({ tone: "success", text: "Copied the X text." }))}>Copy text</Button>
-                <a className="inline-flex min-h-10 items-center rounded-md border border-border px-4 text-sm hover:bg-muted" target="_blank" rel="noreferrer"
-                  href={`https://x.com/intent/post?text=${encodeURIComponent(xFull)}`}>Open X composer ↗</a>
-              </div>
-              {manualPubs.map((p) => <p key={p.id} className="text-sm">Posted: <a className="text-primary underline" href={p.external_url ?? "#"} target="_blank" rel="noreferrer">{p.external_url}</a></p>)}
-              {canAct && (
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="min-w-0 flex-1">
-                    <label className="block text-sm" htmlFor="xurl">After posting, paste the post's URL</label>
-                    <input id="xurl" value={xUrl} onChange={(e) => setXUrl(e.target.value)} placeholder="https://x.com/thedailyheckler/status/…" className="h-10 w-full rounded-md border border-border bg-muted px-3 text-sm" />
-                  </div>
-                  <Button variant="outline" disabled={!!busy || !xUrl.trim()} onClick={markPosted}>Mark posted</Button>
-                </div>
-              )}
-            </Card>
+          {(item.status === "approved" || item.status === "scheduled" || item.status === "live") && (
+            <HandoffCard itemId={item.id} imagePath={item.source_image_path} variants={variants} pubs={pubs} platformsCfg={brand?.settings.platforms ?? {}}
+              canAct={canAct} onChanged={() => void load()} onMessage={setMsg} />
           )}
         </div>
       </div>

@@ -52,11 +52,17 @@ export function buildPayloads({ item, variants, settings, hasApproval, now = new
     (cfg.via === "manual" ? manual : auto).push(post);
   }
 
-  // Each edition's Story goes to both Facebook and Instagram.
+  // Each edition's Story goes to both Facebook and Instagram (automatic or by hand, per that platform's setting).
   if (platforms.instagram?.story_to_both) {
     for (const platform of ["instagram", "facebook"] as const) {
-      if (!variants.some((v) => v.platform === platform)) continue;
-      auto.push({ platform, format: "story", text: "", hashtags: [], alt_text: variants.find((v) => v.platform === platform)?.alt_text ?? null, image_path: item.source_image_path, scheduled_for: when });
+      const cfg = platforms[platform];
+      if (!cfg || cfg.via === "later" || cfg.via === "api" || !variants.some((v) => v.platform === platform)) continue;
+      const story: PublishPayload = {
+        platform, format: "story", text: "", hashtags: [],
+        alt_text: variants.find((v) => v.platform === platform)?.alt_text ?? null,
+        image_path: item.source_image_path, scheduled_for: when,
+      };
+      (cfg.via === "manual" ? manual : auto).push(story);
     }
   }
   return { auto, manual };

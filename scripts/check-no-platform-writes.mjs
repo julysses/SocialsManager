@@ -6,9 +6,9 @@ import { join, relative } from "node:path";
 const root = new URL("..", import.meta.url).pathname;
 const SKIP = new Set(["node_modules", "dist", ".git", ".wrangler"]);
 const ALLOWED = ["packages/publisher/"];
+// Only API hosts count. Plain links (e.g. the "Open Metricool" button) are not write calls.
 const PATTERNS = [
   /api\.metricool\.com/i,
-  /app\.metricool\.com/i,
   /graph\.facebook\.com/i,
   /graph\.instagram\.com/i,
   /api\.(twitter|x)\.com/i,

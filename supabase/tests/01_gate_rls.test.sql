@@ -290,7 +290,7 @@ begin
   perform tt.as_user(a, 'julyssesd@gmail.com');
   perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', 'https://x.com/a/status/1')$q$, draft), 'approved first'),
     'cannot record a manual post for an unapproved item');
-  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'threads', 'https://threads.net/p/1')$q$, sched), 'not posted by hand'),
+  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'threads', 'https://threads.net/p/1')$q$, sched), 'not manual'),
     'only hand-posted platforms can be recorded');
   perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', 'not a url')$q$, sched), 'URL is required'),
     'a real URL is required');
@@ -355,13 +355,13 @@ declare a uuid := '00000000-0000-0000-0000-00000000000a'; item uuid;
 begin
   select id into item from content_items where title = 'A item';  -- scheduled, X already recorded above
   perform tt.as_user(a, 'julyssesd@gmail.com');
-  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', 'https://x.com/a/status/9')$q$, item), 'already recorded'), 'the same post cannot be recorded twice');
-  perform tt.ok(tt.fails(format($q$select mark_posted_manual(%L, 'x', null, 'story')$q$, item), 'only recorded for Instagram and Facebook'), 'X has no Stories');
-  perform mark_posted_manual(item, 'instagram', 'https://instagram.com/p/abc');
-  perform mark_posted_manual(item, 'facebook', 'https://facebook.com/post/1');
-  perform mark_posted_manual(item, 'instagram', null, 'story');
+  perform tt.ok(tt.fails(format($q$select mark_posted_handoff(%L, 'x', 'https://x.com/a/status/9')$q$, item), 'already recorded'), 'the same post cannot be recorded twice');
+  perform tt.ok(tt.fails(format($q$select mark_posted_handoff(%L, 'x', null, 'story')$q$, item), 'only recorded for Instagram and Facebook'), 'X has no Stories');
+  perform mark_posted_handoff(item, 'instagram', 'https://instagram.com/p/abc');
+  perform mark_posted_handoff(item, 'facebook', 'https://facebook.com/post/1');
+  perform mark_posted_handoff(item, 'instagram', null, 'story');
   perform tt.ok((select status from content_items where id = item) = 'scheduled', 'still scheduled while the Facebook Story is missing');
-  perform mark_posted_manual(item, 'facebook', '', 'story');
+  perform mark_posted_handoff(item, 'facebook', '', 'story');
   perform tt.ok((select status from content_items where id = item) = 'live', 'item becomes live once every hand-posted item is recorded');
   perform tt.reset();
   perform tt.ok((select count(*) from unapproved_publications) = 0, 'unapproved_publications still 0 rows after hand-off');
