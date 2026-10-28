@@ -40,6 +40,15 @@ describe("buildPayloads", () => {
   });
 });
 
+describe("hand-off (free Metricool plan: Instagram and Facebook posted by hand)", () => {
+  const handoff = { ...settings, platforms: { ...settings.platforms, instagram: { via: "manual" as const, story_to_both: true }, facebook: { via: "manual" as const } } };
+  it("sends nothing automatically and lists every post and Story for the owner", () => {
+    const { auto, manual } = buildPayloads({ item: item(), variants: all, settings: handoff, hasApproval: true });
+    expect(auto).toEqual([]);
+    expect(manual.map((p) => `${p.platform}:${p.format}`).sort()).toEqual(["facebook:post", "facebook:story", "instagram:post", "instagram:story", "x:post"]);
+  });
+});
+
 describe("adapters", () => {
   it("defaults to dry run and never goes live unless the owner set live", async () => {
     expect(selectAdapter({}).mode).toBe("dry_run");

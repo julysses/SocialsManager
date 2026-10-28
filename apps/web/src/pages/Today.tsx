@@ -37,9 +37,9 @@ export function TodayPage() {
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li><Link to="/upload" className="text-primary underline">Upload</Link> the cartoon and paste ChatGPT's text.</li>
           <li>Open it in the <Link to="/queue" className="text-primary underline">Queue</Link>, check each platform tab, edit if needed.</li>
-          <li>Click <b>Approve</b>. Then, as a separate click, <b>Schedule</b> or <b>Post now</b>.</li>
+          <li>Click <b>Approve</b>. Then, as a separate click, <b>Schedule</b> or <b>Post now</b>, then post by hand from the item page and record it.</li>
         </ol>
-        {brand?.settings.publish_mode !== "live" && <p className="text-xs text-warning">Dry-run mode: scheduling records what would be sent. Nothing is posted to Instagram or Facebook yet.</p>}
+        {brand?.settings.publish_mode !== "live" && <p className="text-xs text-warning">Hand-off mode: nothing is sent automatically. After approving, you copy the text and post it yourself.</p>}
       </Card>
     </div>
   );
